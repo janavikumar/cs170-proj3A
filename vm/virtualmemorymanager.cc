@@ -116,9 +116,12 @@ void VirtualMemoryManager::swapPageIn(int virtAddr)
             if(d == true){
                 char* mmMemory = machine->mainMemory + prevPageEntry->physicalPage * PageSize;
                 int index = physicalPageInfo->pageTableIndex;
-                TranslationEntry* sw = physicalPageInfo->space->getPageTableEntry(index);
-                writeToSwap(mmMemory, PageSize, sw->locationOnDisk);
-                prevPageEntry->dirty = false;
+                //PROJ3A
+		//TranslationEntry* sw = physicalPageInfo->space->getPageTableEntry(index);
+                // writeToSwap(mmMemory, PageSize, sw->locationOnDisk);
+                //PROJ3B
+		writeToSwap(mmMemory, PageSize, physicalPageInfo->space->newLOD[index]);
+		prevPageEntry->dirty = false;
             }
 
             //swap the old page with the current page
@@ -161,7 +164,7 @@ void VirtualMemoryManager::releasePages(AddrSpace* space)
             memoryManager->clearPage(currPage->physicalPage);
             physicalMemoryInfo[currPage->physicalPage].space = NULL; 
         }
-        swapSectorMap->Clear((currPage->locationOnDisk) / PageSize);
+        swapSectorMap->Clear((space->newLOD[i]) / PageSize);
     }
 }
 
@@ -174,7 +177,9 @@ void VirtualMemoryManager::loadPageToCurrVictim(int virtAddr)
     int pageTableIndex = virtAddr / PageSize;
     TranslationEntry* page = currentThread->space->getPageTableEntry(pageTableIndex);
     char* physMemLoc = machine->mainMemory + page->physicalPage * PageSize;
-    int swapSpaceLoc = page->locationOnDisk;
+    //Proj 3A int swapSpaceLoc = page->locationOnDisk;
+    //Proj 3B
+    int swapSpaceLoc = currentThread->space->newLOD[pageTableIndex];
     swapFile->ReadAt(physMemLoc, PageSize, swapSpaceLoc);
 
   //  int swapSpaceIndex = swapSpaceLoc / PageSize;

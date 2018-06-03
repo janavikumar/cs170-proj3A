@@ -44,6 +44,9 @@ class AddrSpace {
     TranslationEntry *pageTable;	// Assume linear page table translation
 					// for now!
 
+    int* newLOD; // replacement for removed locationOnDisk
+    	//structure will hold all locations on the disk
+
   private:
     unsigned int numPages;		// Number of pages in the virtual 
 					// address space
