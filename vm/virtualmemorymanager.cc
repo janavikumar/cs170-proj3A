@@ -62,8 +62,7 @@ void VirtualMemoryManager::swapPageIn(int virtAddr)
         TranslationEntry* currPageEntry;
         
         //create a stack frame that holds information about the pages in the memory manager
-        FrameInfo* physicalPageInfo;
-        physicalPageInfo = nextVictim + physicalMemoryInfo;
+        FrameInfo* physicalPageInfo = nextVictim + physicalMemoryInfo;
         //create an object to hold the translation between the old physical page and the its virtual counterpart
         TranslationEntry* prevPageEntry;
 
@@ -80,9 +79,8 @@ void VirtualMemoryManager::swapPageIn(int virtAddr)
         }
 
         //if there is space, find the next open place from front of the queue
-        while(physicalPageInfo->space != NULL){
+        while(physicalPageInfo->space != NULL && getPageTableEntry(physicalPageInfo)->use == true){
             //if the reference bit is set for current page in stack then clear it
-            if(getPageTableEntry(physicalPageInfo)->use = true){
                 getPageTableEntry(physicalPageInfo)->use = false;
                 //increment the spot you're looking at
                 nextVictim++;
@@ -90,26 +88,36 @@ void VirtualMemoryManager::swapPageIn(int virtAddr)
                 //in the stack, move to the next location (remember to % NumPhysPages
                 //as this works in a cyclical queue and needs to wrap around
                 physicalPageInfo = physicalMemoryInfo + (nextVictim);
-            }
-            //if the next reference bit is not set, then break out, as you've found
-            //the spot
-            if(getPageTableEntry(physicalPageInfo)->use = false){
-                break;
-            }
+            
         }
 
         //now, if there is space in the stack frame for physical pages
+	//if there is no space, however, make room then increment nextVictim
+	//to move to the correct point in the stack for the following slot search
         //find the victim page and swap
-        if(physicalPageInfo->space != NULL){
-            //set the old page 
+        if(physicalPageInfo->space == NULL){
+            //point the stack to a new physical page structure
+            *physicalPageInfo = FrameInfo();
+            int newIndex = virtAddr/PageSize;
+            physicalPageInfo->pageTableIndex = newIndex;
+            physicalPageInfo->space = currentThread->space;
+            currPageEntry = getPageTableEntry(physicalPageInfo);
+            //access the page number in real memory and set 
+            currPageEntry->physicalPage = memoryManager->getPage();
+            loadPageToCurrVictim(virtAddr);
+
+	}
+
+
+        else{
+	    //set the old page
             prevPageEntry = getPageTableEntry(physicalPageInfo);
             bool d = prevPageEntry->dirty;
             if(d == true){
-                char* mmMemory = machine->mainMemory;
-                int p = prevPageEntry->physicalPage * PageSize;
+                char* mmMemory = machine->mainMemory + prevPageEntry->physicalPage * PageSize;
                 int index = physicalPageInfo->pageTableIndex;
                 TranslationEntry* sw = physicalPageInfo->space->getPageTableEntry(index);
-                writeToSwap(mmMemory + p, PageSize, sw->locationOnDisk);
+                writeToSwap(mmMemory, PageSize, sw->locationOnDisk);
                 prevPageEntry->dirty = false;
             }
 
@@ -121,22 +129,6 @@ void VirtualMemoryManager::swapPageIn(int virtAddr)
             currPageEntry->physicalPage = prevPageEntry->physicalPage;
             loadPageToCurrVictim(virtAddr);
             prevPageEntry->valid = false;
-        }
-
-
-        //if there is no space, however, make room, then increment nextVictim
-        //to move to the correct point in the stack for the following slot search
-        else{
-            //point the stack to a new physical page structure
-            *physicalPageInfo = FrameInfo();
-            int newIndex = virtAddr/PageSize;
-            physicalPageInfo->pageTableIndex = newIndex;
-            physicalPageInfo->space = currentThread->space;
-
-            currPageEntry = getPageTableEntry(physicalPageInfo);
-            //access the page number in real memory and set 
-            currPageEntry->physicalPage = memoryManager->getPage();
-            loadPageToCurrVictim(virtAddr);
 
         }
     
